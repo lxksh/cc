@@ -487,6 +487,418 @@ Copy the endpoint URL
    - Verify that the Lambda function is triggered.
    - Confirm that the record appears (or is updated) in the DynamoDB table.
 
+### Experiment 9: Amazon Lex
+ Step 1: Open Lex
+Go to AWS Console → Amazon Lex V2
+
+ Step 2: Create a Bot
+1️ Click Create bot
+
+2️⃣ Choose:
+
+Bot name: AirlineBookingBot
+
+Runtime: Lex V2
+
+IAM role: Let Lex create one for you
+
+Children: None
+
+3️⃣ Language: English (US)
+
+4️⃣ Session timeout: e.g. 5 min
+5️⃣ Click Next, then Create
+
+✅ Step 3: Add Intent
+Click Intents → Add intent → Create new intent
+
+Name: BookFlight
+
+✅ Step 4: Add Slots
+Slots = user inputs
+
+Add:
+
+Name	Slot Type	Prompt
+DepartureCity	AMAZON.City	"Where are you flying from?"
+Destination	AMAZON.City	"Where are you flying to?"
+TravelDate	AMAZON.Date	"When are you travelling?"
+Passengers	AMAZON.Number	"How many passengers?"
+Class	AMAZON.FlightClass	"Which class do you prefer (Economy/Business)?"
+
+✅ Slot order: make sure Passengers comes before Class so you can use Passengers to decide the Class.
+
+✅ Step 5: Add Lambda (optional)
+👉 If you want to process logic (like auto-upgrade to Business), you can connect a Lambda function.
+
+Example:
+
+If Passengers > 4 and user said Economy → override slot value to Business.
+
+Or you can handle this in closing response using Conditional branching.
+
+✅ Step 6: Closing Response
+Add a response template:
+
+Example:
+
+yaml
+Copy code
+Booking Confirmed!  
+{DepartureCity} → {Destination} | {TravelDate}  
+{Passengers} Passengers | {Class} Class  
+Meals: 2 Veg, 3 Non-Veg | Seats auto-selected  
+Total: ₹87,500 (20% group discount applied)  
+Frequent Flyer: GA-7X9B2P (Earned: 875 points)
+✅ If you want dynamic logic, use Lambda to:
+
+Check slots
+
+Compute price
+
+Format confirmation
+
+✅ Step 7: Build and Test
+1️⃣ Click Build to compile.
+
+2️⃣ Click Test to launch chat:
+
+Hi → bot responds.
+
+Try:
+
+css
+Copy code
+I want to book a flight  
+From Delhi to Mumbai  
+On Dec 25  
+5 passengers  
+Economy
+Check that your closing message upgrades to Business Class if Passengers > 4.
+
+✅ Step 8: Deploy
+When ready, you can:
+
+Connect to Amazon Connect (call center)
+
+Add as a website chatbot (via Lex Web UI or Amazon Connect Contact Flow)
+
+
+ ### Exp 10 DynamoDB
+Manage a Products table for an e-commerce store:
+
+Columns: ProductID (Partition Key), Name, Category, Price, StockCount
+
+Insert 3 products:
+
+One via Console Form (e.g., Smartphone)
+
+One via JSON (e.g., Laptop)
+
+One via PartiQL (e.g., Headphones)
+
+Scan for all electronics
+
+Query by ProductID
+
+PartiQL for products under $50 with stock
+
+✅ Step 1: Create the Table
+1️⃣ Go to DynamoDB Console → Tables → Create Table
+
+Table name: Products
+
+Partition key: ProductID (String)
+
+Leave Sort key blank
+
+Provisioned or On-Demand: On-Demand (free tier friendly)
+
+Create.
+
+✅ Step 2: Insert Record via Console Form
+1️⃣ Click Tables → Products → Explore Table Items
+
+2️⃣ Click Create item
+
+ProductID: P1001
+
+Name: Smartphone
+
+Category: Electronics
+
+Price: 699
+
+StockCount: 20
+
+✅ Click Create item
+
+✅ Step 3: Insert Record via JSON
+1️⃣ Click Create item → Switch to JSON
+
+2️⃣ Paste:
+
+json
+Copy code
+{
+  "ProductID": "P1002",
+  "Name": "Laptop",
+  "Category": "Electronics",
+  "Price": 1200,
+  "StockCount": 15
+}
+✅ Click Create item
+
+✅ Step 4: Insert Record via PartiQL
+1️⃣ Click PartiQL editor (in the left sidebar)
+
+2️⃣ Run:
+
+sql
+Copy code
+INSERT INTO "Products" VALUE {
+  'ProductID': 'P1003',
+  'Name': 'Headphones',
+  'Category': 'Electronics',
+  'Price': 45,
+  'StockCount': 30
+};
+✅ Click Run
+
+✅ Step 5: Scan to get all Electronics
+sql
+Copy code
+SELECT * FROM "Products" WHERE "Category" = 'Electronics';
+✅ Click Run — see all 3 items!
+
+✅ Step 6: Query by ProductID
+To get Laptop by ID:
+
+sql
+Copy code
+SELECT * FROM "Products" WHERE "ProductID" = 'P1002';
+✅ This returns Laptop.
+
+✅ Step 7: PartiQL — Products under $50 with stock
+sql
+Copy code
+SELECT * FROM "Products"
+WHERE "Price" < 50 AND "StockCount" > 0;
+✅ This finds Headphones (or any other cheap item).
+
+⚡ ✅ Exp 10 done!
+✔ Table created
+✔ 3 items added — Console, JSON, PartiQL
+✔ Scanned & queried
+✔ ✅ You know how to read/write DynamoDB
+
+
+ ### Exp 11 Goal
+You’ll:
+1️⃣ Create an IAM Group
+2️⃣ Make a Custom Policy
+3️⃣ Add Users to the Group
+4️⃣ Create an IAM Role for EC2 with trust policy
+5️⃣ Test that the user can launch EC2 and access the S3 bucket
+
+✅ Step 1: Create IAM Group
+1️⃣ Go to IAM Console → User Groups → Create Group
+2️⃣ Name: WebDevTeam
+3️⃣ No policies attached yet → click Create Group
+
+✅ Step 2: Create Custom Managed Policy
+1️⃣ IAM → Policies → Create policy → JSON
+
+2️⃣ Paste:
+
+json
+Copy code
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "ec2:*",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::dev-website-assets",
+        "arn:aws:s3:::dev-website-assets/*"
+      ]
+    }
+  ]
+}
+✅ Click Next → Name: WebDevPolicy → Create Policy
+
+✅ Step 3: Attach Policy to Group
+1️⃣ IAM → User Groups → WebDevTeam → Add permissions
+
+2️⃣ Attach WebDevPolicy → Save.
+
+✅ Step 4: Create IAM Users
+1️⃣ IAM → Users → Add user
+
+User: dev1
+
+Access type: AWS Management Console access
+
+Password: custom or autogenerated
+
+2️⃣ Add to Group: WebDevTeam
+
+3️⃣ Repeat for dev2.
+
+✅ Step 5: Create IAM Role for EC2
+1️⃣ IAM → Roles → Create role
+
+Trusted entity: AWS service
+
+Use case: EC2
+
+2️⃣ Attach policy:
+
+json
+Copy code
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::dev-website-assets",
+        "arn:aws:s3:::dev-website-assets/*"
+      ]
+    }
+  ]
+}
+✅ Or attach AmazonS3ReadOnlyAccess if you prefer.
+
+3️⃣ Name it: EC2WebServerRole
+
+4️⃣ Create Role
+
+✅ Step 6: Test
+1️⃣ Sign in as dev1 in AWS Console → EC2 → Launch an instance.
+
+2️⃣ During instance launch, in Advanced → IAM Role, attach EC2WebServerRole.
+
+3️⃣ SSH into the instance → run:
+
+bash
+Copy code
+aws s3 ls s3://dev-website-assets --region <your-region>
+✅ Should list objects!
+
+⚡ ✅ Exp 11 done!
+✔ IAM Group (WebDevTeam)
+✔ Custom Policy (WebDevPolicy)
+✔ Users (dev1 & dev2)
+✔ EC2 Role (EC2WebServerRole)
+✔ Tested EC2 → S3 access
+
+### Part A — SNS + SQS
+✅ Step 1: Create SNS Topic
+1️⃣ Go to SNS Console → Topics → Create Topic
+
+Type: Standard
+
+Name: order-events
+
+✅ Click Create
+
+✅ Step 2: Create SQS Queues
+1️⃣ Go to SQS Console → Create Queue
+
+Queue 1: payment-queue
+
+Queue 2: inventory-queue
+
+Leave as Standard queue
+
+Create both
+
+✅ Step 3: Subscribe SQS to SNS
+1️⃣ SNS → Topics → order-events → Create subscription
+
+Protocol: SQS
+
+Endpoint: ARN of payment-queue
+
+2️⃣ Repeat → add inventory-queue
+
+✅ Now SNS → both SQS queues get same message!
+
+✅ Step 4: Test
+1️⃣ SNS → order-events → Publish message
+
+Example JSON:
+
+json
+Copy code
+{
+  "order_id": "O123",
+  "customer_id": "C456",
+  "amount": 250
+}
+✅ Publish → both queues get it!
+
+2️⃣ SQS → payment-queue → Poll for messages
+✅ Should see the message.
+
+Same for inventory-queue.
+
+✅ Part B — CloudFront
+✅ Step 1: Upload your static site to S3
+1️⃣ Create bucket: blog-static-files
+2️⃣ Upload index.html, styles.css, etc.
+
+✅ Step 2: Make bucket public
+Bucket → Permissions → Block Public Access → Uncheck all
+
+Add Bucket Policy:
+
+json
+Copy code
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PublicReadGetObject",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::blog-static-files/*"
+    }
+  ]
+}
+✅ Step 3: Create CloudFront Distribution
+1️⃣ Go to CloudFront Console → Create Distribution
+
+2️⃣ Origin Domain: pick your blog-static-files bucket
+
+3️⃣ Set Default Root Object → index.html
+
+4️⃣ Click Create Distribution
+
+✅ You’ll get a CloudFront Domain Name → copy it.
+
+✅ Step 4: Test
+Open your CloudFront URL — you’ll see your static website loading worldwide, faster!
+
+
+
+
 ---
 
 ## Final Notes
